@@ -4,7 +4,7 @@
 
 QuickiEmbed is a retrieval-tuned embedding runtime for browsers, Node.js, Bun, Deno, and edge runtimes.
 
-- **Up to `866,803 texts/sec` in batch**
+- **Up to `866,803 texts/sec` in batch** (~10M tokens/sec)
 - **Up to `1,829,268 texts/sec` on tiny inputs**
 - **Beats BM25 on BEIR-6 average in the default mode**
 - **Ships in modes from `~32 MB` down to `~50 KB`**
