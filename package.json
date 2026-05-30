@@ -1,6 +1,6 @@
 {
   "name": "quicki-embed",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "The fastest text embedding model. Period.",
   "homepage": "https://mrhisearch.com/",
   "type": "module",
@@ -46,10 +46,10 @@
   "author": "Burke Designs LLC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BurkeDesigns/quicki-embed.git"
+    "url": "git+https://github.com/Burke-Designs-LLC/quicki-embed.git"
   },
   "bugs": {
-    "url": "https://github.com/BurkeDesigns/quicki-embed/issues"
+    "url": "https://github.com/Burke-Designs-LLC/quicki-embed/issues"
   },
   "license": "Apache-2.0",
   "sideEffects": false,
