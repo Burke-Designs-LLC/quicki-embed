@@ -1,11 +1,12 @@
 {
   "name": "quicki-embed",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The fastest text embedding model. Period.",
   "homepage": "https://mrhisearch.com/",
   "type": "module",
   "scripts": {
     "npm:login": "npm login",
+    "npm:patch": "npm version patch",
     "npm:publish": "npm publish",
     "npm:dry-run": "npm pack --dry-run"
   },
