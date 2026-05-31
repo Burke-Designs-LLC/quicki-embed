@@ -4,8 +4,8 @@
 
 QuickiEmbed is a retrieval-tuned embedding runtime for browsers, Node.js, Bun, Deno, and edge runtimes.
 
-- **Up to `1,038,538 texts/sec` in batch**
-- **Up to `2,185,567 texts/sec` on tiny inputs**
+- **Up to `1,065,442 texts/sec` in batch**
+- **Up to `2,129,815 texts/sec` on tiny inputs**
 - **Beats BM25 on BEIR-6 average in the default mode**
 - **Ships in modes from `~32 MB` down to `~50 KB`**
 
@@ -78,27 +78,27 @@ Measured on Apple Silicon:
 
 | mode | output dim | single-call | batch |
 |---|---:|---:|---:|
-| `static` (default) | `512` | `775,964 texts/sec` | `1,038,538 texts/sec` |
-| `hybrid` | `1536` | `380,033 texts/sec` | `429,676 texts/sec` |
-| `hashing` | `1024` | `712,393 texts/sec` | `807,419 texts/sec` |
+| `static` (default) | `512` | `1,005,871 texts/sec` | `1,065,442 texts/sec` |
+| `hybrid` | `1536` | `417,522 texts/sec` | `452,058 texts/sec` |
+| `hashing` | `1024` | `748,989 texts/sec` | `961,863 texts/sec` |
 
 First real `embed()` call after `QuickiEmbed.create()` / `fromFile()` resolves:
 
-| mode | median latency | average latency |
+| mode | median latency | p95 latency |
 |---|---:|---:|
-| `static` (default) | `0.0113 ms` | `0.0117 ms` |
-| `hybrid` | `0.0150 ms` | `0.0147 ms` |
-| `hashing` | `0.0041 ms` | `0.0046 ms` |
+| `static` (default) | `0.0075 ms` | `0.0189 ms` |
+| `hybrid` | `0.0089 ms` | `0.0138 ms` |
+| `hashing` | `0.0019 ms` | `0.0270 ms` |
 
 Representative single-call throughput by input size:
 
 | text shape | approx chars | `static` texts/sec | `hybrid` texts/sec | `hashing` texts/sec |
 |---|---:|---:|---:|---:|
-| 1 word | `~5` | `2,185,567` | `724,433` | `1,436,637` |
-| short query / headline | `~61` | `780,117` | `377,767` | `672,708` |
-| sentence | `~145` | `431,486` | `220,175` | `434,686` |
-| paragraph | `~654` | `94,510` | `57,354` | `116,750` |
-| long document | `~3143` | `20,664` | `12,064` | `24,069` |
+| 1 word | `~5` | `2,129,815` | `732,628` | `1,493,805` |
+| short query / headline | `~61` | `995,892` | `413,575` | `766,403` |
+| sentence | `~145` | `488,485` | `241,449` | `493,440` |
+| paragraph | `~654` | `129,252` | `66,846` | `139,140` |
+| long document | `~3143` | `26,158` | `15,171` | `34,105` |
 
 ## Retrieval Quality
 

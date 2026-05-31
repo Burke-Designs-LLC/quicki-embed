@@ -1,6 +1,7 @@
 const DEFAULT_DIM = 1024;
 const DEFAULT_MODE = "static";
 const INITIAL_SINGLE_INPUT_CAP = 4096;
+const TINY_ASCII_MANUAL_CUTOFF = 24;
 const WARMUP_TEXT = "quicki embed warmup for low latency vector search on the edge";
 const WARMUP_RUNS = 8;
 const _defaultInstances = new Map();
@@ -209,16 +210,23 @@ export class QuickiEmbed {
     this.ensureOpen();
     const ex = this.ex;
     let len = 0;
-    if (isAscii(text)) {
+    if (text.length <= TINY_ASCII_MANUAL_CUTOFF && isAscii(text)) {
       len = text.length;
       const inPtr = this.ensureBuffer("singleIn", len);
       const mem = new Uint8Array(ex.memory.buffer, inPtr, len);
       for (let i = 0; i < len; i++) mem[i] = text.charCodeAt(i);
       this.encodeOne(inPtr, len, this.singleOutPtr);
+      return new Float32Array(ex.memory.buffer, this.singleOutPtr, this.dim).slice();
+    }
+    const maxLen = text.length * 3;
+    const inPtr = this.ensureBuffer("singleIn", maxLen);
+    if (typeof this.enc.encodeInto === "function") {
+      const mem = new Uint8Array(ex.memory.buffer, inPtr, maxLen);
+      len = this.enc.encodeInto(text, mem).written;
+      this.encodeOne(inPtr, len, this.singleOutPtr);
     } else {
       const u8 = this.enc.encode(text);
       len = u8.length;
-      const inPtr = this.ensureBuffer("singleIn", len);
       new Uint8Array(ex.memory.buffer, inPtr, len).set(u8);
       this.encodeOne(inPtr, len, this.singleOutPtr);
     }
@@ -231,36 +239,8 @@ export class QuickiEmbed {
     const n = texts.length;
     const lensPtr = this.ensureBuffer("batchLens", n * 4);
     const outPtr = this.ensureBuffer("batchOut", n * this.dim * 4);
-
-    if (texts.every(isAscii)) {
-      let total = 0;
-      for (let i = 0; i < n; i++) total += texts[i].length;
-      const textPtr = this.ensureBuffer("batchText", total);
-      const lens = new Uint32Array(ex.memory.buffer, lensPtr, n);
-      const mem = new Uint8Array(ex.memory.buffer, textPtr, total);
-      let off = 0;
-      for (let i = 0; i < n; i++) {
-        const text = texts[i];
-        const len = text.length;
-        lens[i] = len;
-        for (let j = 0; j < len; j++) mem[off + j] = text.charCodeAt(j);
-        off += len;
-      }
-      this.encodeMany(textPtr, lensPtr, n, outPtr);
-    } else {
-      const encoded = texts.map((t) => this.enc.encode(t));
-      const total = encoded.reduce((a, b) => a + b.length, 0);
-      const textPtr = this.ensureBuffer("batchText", total);
-      const lens = new Uint32Array(ex.memory.buffer, lensPtr, n);
-      const mem = new Uint8Array(ex.memory.buffer);
-      let off = 0;
-      for (let i = 0; i < n; i++) {
-        mem.set(encoded[i], textPtr + off);
-        lens[i] = encoded[i].length;
-        off += encoded[i].length;
-      }
-      this.encodeMany(textPtr, lensPtr, n, outPtr);
-    }
+    const textPtr = this.ensureEncodedTexts(texts, lensPtr);
+    this.encodeMany(textPtr, lensPtr, n, outPtr);
     return new Float32Array(ex.memory.buffer, outPtr, n * this.dim).slice();
   }
 
@@ -304,12 +284,43 @@ export class QuickiEmbed {
   ensureEncodedTexts(texts, lensPtr) {
     const ex = this.ex;
     const n = texts.length;
-    if (texts.every(isAscii)) {
-      let total = 0;
-      for (let i = 0; i < n; i++) total += texts[i].length;
-      const textPtr = this.ensureBuffer("batchText", total);
-      const lens = new Uint32Array(ex.memory.buffer, lensPtr, n);
-      const mem = new Uint8Array(ex.memory.buffer, textPtr, total);
+    let allAscii = true;
+    let totalChars = 0;
+    for (let i = 0; i < n; i++) {
+      const text = texts[i];
+      totalChars += text.length;
+      if (allAscii && !isAscii(text)) allAscii = false;
+    }
+    const cap = allAscii ? totalChars : totalChars * 3;
+    const textPtr = this.ensureBuffer("batchText", cap);
+    const lens = new Uint32Array(ex.memory.buffer, lensPtr, n);
+
+    if (allAscii && totalChars <= n * TINY_ASCII_MANUAL_CUTOFF) {
+      const mem = new Uint8Array(ex.memory.buffer, textPtr, cap);
+      let off = 0;
+      for (let i = 0; i < n; i++) {
+        const text = texts[i];
+        const len = text.length;
+        lens[i] = len;
+        for (let j = 0; j < len; j++) mem[off + j] = text.charCodeAt(j);
+        off += len;
+      }
+      return textPtr;
+    }
+
+    if (typeof this.enc.encodeInto === "function") {
+      const mem = new Uint8Array(ex.memory.buffer, textPtr, cap);
+      let off = 0;
+      for (let i = 0; i < n; i++) {
+        const written = this.enc.encodeInto(texts[i], mem.subarray(off)).written;
+        lens[i] = written;
+        off += written;
+      }
+      return textPtr;
+    }
+
+    if (allAscii) {
+      const mem = new Uint8Array(ex.memory.buffer, textPtr, cap);
       let off = 0;
       for (let i = 0; i < n; i++) {
         const text = texts[i];
@@ -321,9 +332,6 @@ export class QuickiEmbed {
       return textPtr;
     }
     const encoded = texts.map((t) => this.enc.encode(t));
-    const total = encoded.reduce((a, b) => a + b.length, 0);
-    const textPtr = this.ensureBuffer("batchText", total);
-    const lens = new Uint32Array(ex.memory.buffer, lensPtr, n);
     const mem = new Uint8Array(ex.memory.buffer);
     let off = 0;
     for (let i = 0; i < n; i++) {
