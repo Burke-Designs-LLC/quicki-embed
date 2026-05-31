@@ -1,5 +1,8 @@
 const DEFAULT_DIM = 1024;
 const DEFAULT_MODE = "static";
+const INITIAL_SINGLE_INPUT_CAP = 4096;
+const WARMUP_TEXT = "quicki embed warmup for low latency vector search on the edge";
+const WARMUP_RUNS = 8;
 const _defaultInstances = new Map();
 
 // Each mode ships its own purpose-built wasm so a caller only downloads what it
@@ -51,8 +54,11 @@ export class QuickiEmbed {
     this.idfCap = 0;
     this.tokenIdfPtr = 0;
     this.tokenIdfCap = 0;
-    this.singleInPtr = 0;
-    this.singleInCap = 0;
+    if (typeof this.ex.init_static === "function") {
+      this.ex.init_static();
+    }
+    this.singleInPtr = this.ex.alloc(INITIAL_SINGLE_INPUT_CAP);
+    this.singleInCap = INITIAL_SINGLE_INPUT_CAP;
     this.singleOutPtr = this.ex.alloc(this.dim * 4);
     this.batchTextPtr = 0;
     this.batchTextCap = 0;
@@ -61,6 +67,9 @@ export class QuickiEmbed {
     this.batchOutPtr = 0;
     this.batchOutCap = 0;
     this.closed = false;
+    for (let i = 0; i < WARMUP_RUNS; i++) {
+      this.embed(WARMUP_TEXT);
+    }
   }
 
   static async fromBytes(bytes, dim = DEFAULT_DIM, mode = DEFAULT_MODE) {

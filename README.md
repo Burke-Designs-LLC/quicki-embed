@@ -4,8 +4,8 @@
 
 QuickiEmbed is a retrieval-tuned embedding runtime for browsers, Node.js, Bun, Deno, and edge runtimes.
 
-- **Up to `866,803 texts/sec` in batch** (~10M tokens/sec)
-- **Up to `1,829,268 texts/sec` on tiny inputs**
+- **Up to `1,038,538 texts/sec` in batch**
+- **Up to `2,185,567 texts/sec` on tiny inputs**
 - **Beats BM25 on BEIR-6 average in the default mode**
 - **Ships in modes from `~32 MB` down to `~50 KB`**
 
@@ -78,19 +78,27 @@ Measured on Apple Silicon:
 
 | mode | output dim | single-call | batch |
 |---|---:|---:|---:|
-| `static` (default) | `512` | `774,930 texts/sec` | `866,803 texts/sec` |
-| `hybrid` | `1536` | `338,298 texts/sec` | `361,922 texts/sec` |
-| `hashing` | `1024` | `699,723 texts/sec` | `791,834 texts/sec` |
+| `static` (default) | `512` | `775,964 texts/sec` | `1,038,538 texts/sec` |
+| `hybrid` | `1536` | `380,033 texts/sec` | `429,676 texts/sec` |
+| `hashing` | `1024` | `712,393 texts/sec` | `807,419 texts/sec` |
+
+First real `embed()` call after `QuickiEmbed.create()` / `fromFile()` resolves:
+
+| mode | median latency | average latency |
+|---|---:|---:|
+| `static` (default) | `0.0113 ms` | `0.0117 ms` |
+| `hybrid` | `0.0150 ms` | `0.0147 ms` |
+| `hashing` | `0.0041 ms` | `0.0046 ms` |
 
 Representative single-call throughput by input size:
 
 | text shape | approx chars | `static` texts/sec | `hybrid` texts/sec | `hashing` texts/sec |
 |---|---:|---:|---:|---:|
-| 1 word | `~5` | `1,829,268` | `669,517` | `1,299,766` |
-| short query / headline | `~64` | `649,665` | `323,406` | `616,845` |
-| sentence | `~130` | `373,630` | `203,337` | `396,560` |
-| paragraph | `~654` | `81,055` | `55,591` | `116,289` |
-| long document | `~3143` | `19,206` | `12,102` | `24,662` |
+| 1 word | `~5` | `2,185,567` | `724,433` | `1,436,637` |
+| short query / headline | `~61` | `780,117` | `377,767` | `672,708` |
+| sentence | `~145` | `431,486` | `220,175` | `434,686` |
+| paragraph | `~654` | `94,510` | `57,354` | `116,750` |
+| long document | `~3143` | `20,664` | `12,064` | `24,069` |
 
 ## Retrieval Quality
 
