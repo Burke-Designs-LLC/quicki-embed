@@ -1,6 +1,6 @@
 {
   "name": "quicki-embed",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "The fastest text embedding model. Period.",
   "homepage": "https://mrhisearch.com/",
   "type": "module",

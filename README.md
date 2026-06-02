@@ -58,6 +58,29 @@ const docVectors = qe.embedBatch(docs);
 const queryVector = qe.embed("cat on a mat");
 ```
 
+Rerank a small first-stage candidate set with token-level late interaction:
+
+```js
+const { indices, scores } = qe.rerank("cat on a mat", docs, { topK: 3 });
+```
+
+Use fewer late-interaction dimensions for faster reranking:
+
+```js
+const fast = qe.rerank("cat on a mat", docs, { topK: 3, dim: 384 });
+```
+
+If you already have first-stage cosine scores for the same candidates, you can
+blend them in so late interaction refines the original rank instead of replacing it:
+
+```js
+const reranked = qe.rerank("cat on a mat", docs, {
+  topK: 3,
+  baseScores,
+  baseWeight: 2,
+});
+```
+
 ## Modes
 
 - `static`: best default, `512` dims, strongest speed/quality balance
@@ -106,21 +129,24 @@ BEIR-6 average:
 
 | system | nDCG@10 | nDCG@100 |
 |---|---:|---:|
-| `static` mode (default) | `0.3761` | `0.3921` |
-| `hybrid` mode | `0.3801` | `0.3955` |
-| `hashing` mode | `0.2469` | `0.2564` |
+| `static` mode (default, WASM) | `0.3727` | `0.3900` |
+| `static` + rerank@384 (WASM, top-100) | `0.3510` | `0.3632` |
+| `hybrid` mode (WASM) | `0.3771` | `0.3935` |
+| `hashing` mode (WASM) | `0.2469` | `0.2565` |
 | BM25 | `0.3191` | `0.3173` |
 
 Per-dataset nDCG@10:
 
-| dataset | `static` | `hybrid` | `hashing` | BM25 |
-|---|---:|---:|---:|---:|
-| nfcorpus | `0.3218` | `0.3232` | `0.2207` | `0.2672` |
-| scifact | `0.6320` | `0.6395` | `0.4755` | `0.5597` |
-| arguana | `0.4450` | `0.4465` | `0.2258` | `0.3461` |
-| scidocs | `0.1447` | `0.1479` | `0.1020` | `0.1366` |
-| fiqa | `0.1961` | `0.2014` | `0.1118` | `0.1591` |
-| trec-covid | `0.5169` | `0.5225` | `0.3454` | `0.4474` |
+| dataset | `static` | `static` + rerank@384 | `hybrid` | `hashing` | BM25 |
+|---|---:|---:|---:|---:|---:|
+| nfcorpus | `0.3225` | `0.3115` | `0.3234` | `0.2207` | `0.2672` |
+| scifact | `0.6294` | `0.6541` | `0.6359` | `0.4755` | `0.5597` |
+| arguana | `0.4402` | `0.2144` | `0.4408` | `0.2262` | `0.3461` |
+| scidocs | `0.1443` | `0.1233` | `0.1475` | `0.1020` | `0.1366` |
+| fiqa | `0.1892` | `0.1648` | `0.1941` | `0.1118` | `0.1591` |
+| trec-covid | `0.5105` | `0.6376` | `0.5209` | `0.3454` | `0.4474` |
+
+The table reports pure WASM late-interaction rerank over the static top-100 candidates at 384 dims. Pure rerank helps SciFact and TREC-COVID, but hurts ArguAna and lowers the BEIR-6 average; for query-style workloads, blend with first-stage `baseScores` so rerank refines rather than replaces the vector score.
 
 ## Similarity Quality
 
@@ -163,6 +189,9 @@ Instance methods:
 - `fitRetrieval(texts)`
 - `embed(text)`
 - `embedBatch(texts)`
+- `scoreLateInteraction(query, document)`
+- `scoreLateInteractionBatch(query, documents)`
+- `rerank(query, documents, options?)`
 - `close()`
 
 Compatibility aliases:

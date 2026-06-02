@@ -9,6 +9,23 @@
 export type QuickiEmbedMode = "static" | "hybrid" | "hashing";
 export type FastEmbedMode = QuickiEmbedMode;
 
+export interface QuickiRerankOptions {
+  topK?: number;
+  dim?: number;
+  baseScores?: Float32Array | number[];
+  baseWeight?: number;
+  lateWeight?: number;
+}
+
+export interface QuickiLateInteractionOptions {
+  dim?: number;
+}
+
+export interface QuickiRerankResult {
+  indices: Uint32Array;
+  scores: Float32Array;
+}
+
 export interface QuickiEmbedSourceOptions {
   dim?: number;
   mode?: QuickiEmbedMode;
@@ -61,6 +78,16 @@ export class QuickiEmbed {
   embed(text: string): Float32Array;
 
   embedBatch(texts: string[]): Float32Array;
+
+  scoreLateInteraction(query: string, document: string, options?: QuickiLateInteractionOptions): number;
+
+  scoreLateInteractionBatch(
+    query: string,
+    documents: string[],
+    options?: QuickiLateInteractionOptions,
+  ): Float32Array;
+
+  rerank(query: string, documents: string[], options?: QuickiRerankOptions): QuickiRerankResult;
 
   close(): void;
 }

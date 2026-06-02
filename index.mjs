@@ -67,6 +67,10 @@ export class QuickiEmbed {
     this.batchLensCap = 0;
     this.batchOutPtr = 0;
     this.batchOutCap = 0;
+    this.lateQueryPtr = 0;
+    this.lateQueryCap = 0;
+    this.lateScoresPtr = 0;
+    this.lateScoresCap = 0;
     this.closed = false;
     for (let i = 0; i < WARMUP_RUNS; i++) {
       this.embed(WARMUP_TEXT);
@@ -244,6 +248,85 @@ export class QuickiEmbed {
     return new Float32Array(ex.memory.buffer, outPtr, n * this.dim).slice();
   }
 
+  encodeSingleText(kind, text) {
+    const ex = this.ex;
+    if (isAscii(text)) {
+      const len = text.length;
+      const ptr = this.ensureBuffer(kind, len);
+      const mem = new Uint8Array(ex.memory.buffer, ptr, len);
+      for (let i = 0; i < len; i++) mem[i] = text.charCodeAt(i);
+      return { ptr, len };
+    }
+    const cap = text.length * 3;
+    const ptr = this.ensureBuffer(kind, cap);
+    if (typeof this.enc.encodeInto === "function") {
+      const mem = new Uint8Array(ex.memory.buffer, ptr, cap);
+      return { ptr, len: this.enc.encodeInto(text, mem).written };
+    }
+    const u8 = this.enc.encode(text);
+    new Uint8Array(ex.memory.buffer, ptr, u8.length).set(u8);
+    return { ptr, len: u8.length };
+  }
+
+  scoreLateInteraction(query, document, options = {}) {
+    return this.scoreLateInteractionBatch(query, [document], options)[0] ?? 0;
+  }
+
+  lateInteractionDim(options = {}) {
+    const defaultDim = this.mode === "hybrid" ? this.semanticDim : this.dim;
+    const requested = Math.floor(options.dim ?? defaultDim);
+    return Math.max(1, Math.min(this.semanticDim || defaultDim, requested));
+  }
+
+  scoreLateInteractionBatch(query, documents, options = {}) {
+    this.ensureOpen();
+    if (typeof this.ex.score_late_interaction_batch_static !== "function" || !this.semanticVocab) {
+      throw new Error("late-interaction reranking requires the static or hybrid wasm build");
+    }
+    const n = documents.length;
+    if (n === 0) return new Float32Array(0);
+    const { ptr: queryPtr, len: queryLen } = this.encodeSingleText("lateQuery", query);
+    const lensPtr = this.ensureBuffer("batchLens", n * 4);
+    const docsPtr = this.ensureEncodedTexts(documents, lensPtr);
+    const outPtr = this.ensureBuffer("lateScores", n * 4);
+    this.ex.score_late_interaction_batch_static(
+      queryPtr,
+      queryLen,
+      docsPtr,
+      lensPtr,
+      n,
+      this.lateInteractionDim(options),
+      this.tokenIdfPtr,
+      outPtr,
+    );
+    return new Float32Array(this.ex.memory.buffer, outPtr, n).slice();
+  }
+
+  rerank(query, documents, options = {}) {
+    const topK = Math.max(0, Math.min(documents.length, Math.floor(options.topK ?? documents.length)));
+    const lateScores = this.scoreLateInteractionBatch(query, documents, options);
+    let scores = lateScores;
+    const baseScores = options.baseScores;
+    const baseWeight = Number(options.baseWeight ?? 0);
+    const lateWeight = Number(options.lateWeight ?? 1);
+    if (baseScores && baseWeight !== 0) {
+      if (baseScores.length !== lateScores.length) {
+        throw new Error("baseScores length must match documents length");
+      }
+      scores = new Float32Array(lateScores.length);
+      for (let i = 0; i < lateScores.length; i++) {
+        scores[i] = lateWeight * lateScores[i] + baseWeight * baseScores[i];
+      }
+    }
+    const order = Array.from({ length: documents.length }, (_, index) => index)
+      .sort((a, b) => scores[b] - scores[a])
+      .slice(0, topK);
+    const indices = Uint32Array.from(order);
+    const outScores = new Float32Array(order.length);
+    for (let i = 0; i < order.length; i++) outScores[i] = scores[order[i]];
+    return { indices, scores: outScores };
+  }
+
   fitIdf(texts) {
     this.ensureOpen();
     if (this.mode === "static") {
@@ -351,6 +434,8 @@ export class QuickiEmbed {
     if (this.batchTextPtr) this.ex.dealloc(this.batchTextPtr, this.batchTextCap);
     if (this.batchLensPtr) this.ex.dealloc(this.batchLensPtr, this.batchLensCap);
     if (this.batchOutPtr) this.ex.dealloc(this.batchOutPtr, this.batchOutCap);
+    if (this.lateQueryPtr) this.ex.dealloc(this.lateQueryPtr, this.lateQueryCap);
+    if (this.lateScoresPtr) this.ex.dealloc(this.lateScoresPtr, this.lateScoresCap);
     this.idfPtr = 0;
     this.idfCap = 0;
     this.tokenIdfPtr = 0;
@@ -364,6 +449,10 @@ export class QuickiEmbed {
     this.batchLensCap = 0;
     this.batchOutPtr = 0;
     this.batchOutCap = 0;
+    this.lateQueryPtr = 0;
+    this.lateQueryCap = 0;
+    this.lateScoresPtr = 0;
+    this.lateScoresCap = 0;
     this.closed = true;
   }
 }
