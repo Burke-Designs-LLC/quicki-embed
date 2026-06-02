@@ -9,6 +9,8 @@ QuickiEmbed is a retrieval-tuned embedding runtime for browsers, Node.js, Bun, D
 - **Beats BM25 on BEIR-6 average in the default mode**
 - **Ships in modes from `~32 MB` down to `~50 KB`**
 
+![Embedding throughput](https://raw.githubusercontent.com/Burke-Designs-LLC/quicki-embed/main/dist/readme-speed-chart.svg)
+
 ## Why Use It
 
 - fast enough to disappear into the product
